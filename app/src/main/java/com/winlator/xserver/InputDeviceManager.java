@@ -63,6 +63,18 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
         this.pointWindow = pointWindow != null ? pointWindow : xServer.windowManager.rootWindow;
     }
 
+    /**
+     * Refresh the window under the pointer and notify X11 clients when the pointer crosses
+     * between windows. The renderer uses the same pointWindow to choose the active cursor.
+     */
+    private void updatePointWindowAndNotify() {
+        Window previousPointWindow = pointWindow;
+        updatePointWindow();
+        if (previousPointWindow != pointWindow) {
+            sendEnterLeaveNotify(previousPointWindow, pointWindow, PointerWindowEvent.Mode.NORMAL);
+        }
+    }
+
     public Window getPointWindow() {
         return pointWindow;
     }
@@ -127,6 +139,10 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
 
     @Override
     public void onPointerButtonPress(Pointer.Button button) {
+        // A client WarpPointer can move the pointer without a physical MotionEvent.
+        // Re-hit-test here as a final guard so clicks never target a stale window.
+        if (!xServer.isRelativeMouseMovement()) updatePointWindowAndNotify();
+
         if (xServer.isRelativeMouseMovement()) {
             WinHandler winHandler = xServer.getWinHandler();
             int wheelDelta = button == Pointer.Button.BUTTON_SCROLL_UP ? MOUSE_WHEEL_DELTA : (button == Pointer.Button.BUTTON_SCROLL_DOWN ? -MOUSE_WHEEL_DELTA : 0);
@@ -156,6 +172,8 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
 
     @Override
     public void onPointerButtonRelease(Pointer.Button button) {
+        if (!xServer.isRelativeMouseMovement()) updatePointWindowAndNotify();
+
         if (xServer.isRelativeMouseMovement()) {
             WinHandler winHandler = xServer.getWinHandler();
             winHandler.mouseEvent(MouseEventFlags.getFlagFor(button, false), 0, 0, 0);
@@ -185,7 +203,7 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
 
     @Override
     public void onPointerMove(short x, short y) {
-        updatePointWindow();
+        updatePointWindowAndNotify();
         Bitmask eventMask = createPointerEventMask();
         Window grabWindow = xServer.grabManager.getWindow();
         Window window = grabWindow == null || xServer.grabManager.isOwnerEvents() ? pointWindow.getAncestorWithEventMask(eventMask) : null;
