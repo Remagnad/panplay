@@ -154,12 +154,12 @@ object ControllerInput {
         for (k in heldKeys.toList()) if (k !in keys) { xs.injectKeyRelease(k); heldKeys -= k }
         for (k in keys) if (heldKeys.add(k)) xs.injectKeyPress(k)
         for (b in heldMouse.toList()) if (b !in mouse) {
-            XLog.log("controller mouse up button=\${b.code()} pointer=\${xs.pointer.getX()},\${xs.pointer.getY()}")
+            XLog.log("controller mouse up button=${b.code()} pointer=${xs.pointer.getX()},${xs.pointer.getY()}")
             xs.injectPointerButtonRelease(b)
             heldMouse -= b
         }
         for (b in mouse) if (heldMouse.add(b)) {
-            XLog.log("controller mouse down button=\${b.code()} pointer=\${xs.pointer.getX()},\${xs.pointer.getY()}")
+            XLog.log("controller mouse down button=${b.code()} pointer=${xs.pointer.getX()},${xs.pointer.getY()}")
             xs.injectPointerButtonPress(b)
         }
         for (w in wheels) if (wheelHeld.add(w)) {
