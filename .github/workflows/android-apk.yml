@@ -48,7 +48,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential autoconf automake libtool gettext pkg-config \
-            cmake ninja-build meson bison flex nasm yasm \
+            cmake ninja-build meson glslang-tools bison flex nasm yasm \
             git curl wget ca-certificates unzip zip tar xz-utils zstd \
             python3 python3-pip python3-yaml \
             libffi-dev libcap-dev libdbus-1-dev libglib2.0-dev \
