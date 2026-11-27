@@ -24,8 +24,8 @@ jobs:
     timeout-minutes: 360
 
     env:
-      COMPONENTS_DIR: ~/.cache/panplay-components
-      BUILD_DIR: ~/.cache/panplay-build
+      COMPONENTS_DIR: ${{ runner.temp }}/panplay-components
+      BUILD_DIR: ${{ runner.temp }}/panplay-build
       BUILD_JOBS: "2"
 
     steps:
@@ -65,7 +65,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cache/panplay-components
+            ${{ runner.temp }}/panplay-components
             app/src/main/assets/deps/wow64
           key: panplay-components-\${{ runner.os }}-\${{ hashFiles('scripts/components.env', 'app/bundled-components.json', 'scripts/*.sh', 'runtimes/**') }}
           restore-keys: |
@@ -88,16 +88,22 @@ jobs:
       - name: Build DXVK and VKD3D-Proton
         run: |
           python3 - "$COMPONENTS_DIR" <<'PY'
-          import hashlib, json, pathlib, subprocess, sys
+          import hashlib, json, pathlib, subprocess, sys, os
+          def digest(path):
+              h = hashlib.sha256()
+              with path.open("rb") as f:
+                  for block in iter(lambda: f.read(1024 * 1024), b""):
+                      h.update(block)
+              return h.hexdigest()
           out = pathlib.Path(sys.argv[1])
           manifest = json.load(open("app/bundled-components.json"))
           files = {c["file"]: c["sha256"] for c in manifest["components"]}
           names = ["dxvk-3.1.1-4-arm64ec.wcp", "vkd3d-3.0.1-452-g22307558.wcp"]
-          valid = all((out / n).is_file() and hashlib.sha256((out / n).read_bytes()).hexdigest() == files[n] for n in names)
+          valid = all((out / n).is_file() and digest(out / n) == files[n] for n in names)
           if valid:
               print("Using cached, checksum-verified DXVK and VKD3D WCPs")
           else:
-              subprocess.run(["sh", "scripts/build-dxvk.sh"], check=True, env={**__import__("os").environ, "OUT": str(out), "WORK": str(pathlib.Path.home()/".cache/panplay-build"), "JOBS": "2"})
+              subprocess.run(["sh", "scripts/build-dxvk.sh"], check=True, env={**__import__("os").environ, "OUT": str(out), "WORK": str(pathlib.Path(os.environ["BUILD_DIR"])), "JOBS": "2"})
           PY
 
       - name: Build Box64 WOW64 support
@@ -116,15 +122,21 @@ jobs:
         run: |
           python3 - "$COMPONENTS_DIR" <<'PY'
           import hashlib, json, os, pathlib, subprocess, sys
+          def digest(path):
+              h = hashlib.sha256()
+              with path.open("rb") as f:
+                  for block in iter(lambda: f.read(1024 * 1024), b""):
+                      h.update(block)
+              return h.hexdigest()
           out = pathlib.Path(sys.argv[1])
           manifest = json.load(open("app/bundled-components.json"))
           files = {c["file"]: c["sha256"] for c in manifest["components"]}
           names = ["PulseAudio-17.0-2.wcp", "ALSA-1.2.16.1-2.wcp"]
-          valid = all((out / n).is_file() and hashlib.sha256((out / n).read_bytes()).hexdigest() == files[n] for n in names)
+          valid = all((out / n).is_file() and digest(out / n) == files[n] for n in names)
           if valid:
               print("Using cached, checksum-verified audio WCPs")
           else:
-              env = {**os.environ, "OUT": str(out), "WORK": str(pathlib.Path.home()/".cache/panplay-audio-build"),
+              env = {**os.environ, "OUT": str(out), "WORK": str(pathlib.Path(os.environ["BUILD_DIR"])/"audio"),
                      "JOBS": "2", "NDK": str(pathlib.Path(os.environ["ANDROID_HOME"])/"ndk/29.0.14206865")}
               subprocess.run(["sh", "scripts/build-audio.sh"], check=True, env=env)
           PY
@@ -133,12 +145,18 @@ jobs:
         run: |
           python3 - "$COMPONENTS_DIR" <<'PY'
           import hashlib, json, pathlib, sys
+          def digest(path):
+              h = hashlib.sha256()
+              with path.open("rb") as f:
+                  for block in iter(lambda: f.read(1024 * 1024), b""):
+                      h.update(block)
+              return h.hexdigest()
           out = pathlib.Path(sys.argv[1])
           components = json.load(open("app/bundled-components.json"))["components"]
           failed = []
           for c in components:
               p = out / c["file"]
-              actual = hashlib.sha256(p.read_bytes()).hexdigest() if p.is_file() else "missing"
+              actual = digest(p) if p.is_file() else "missing"
               ok = actual == c["sha256"]
               print(f"{'OK' if ok else 'FAIL'} {c['file']}")
               if not ok: failed.append(c["file"])
