@@ -149,7 +149,7 @@ jobs:
           if not path.is_file():
               raise SystemExit(f"Missing generated Box64 WCP: {path}")
           box64["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
-          manifest_path.write_text(json.dumps(manifest, indent=2) + "\\n")
+          manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
           print(f"Pinned generated Box64 WCP sha256: {box64['sha256']}")
           PY
 
