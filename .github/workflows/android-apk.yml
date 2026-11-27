@@ -24,8 +24,8 @@ jobs:
     timeout-minutes: 360
 
     env:
-      COMPONENTS_DIR: ${{ runner.temp }}/panplay-components
-      BUILD_DIR: ${{ runner.temp }}/panplay-build
+      COMPONENTS_DIR: ${{ github.workspace }}/.ci/components
+      BUILD_DIR: ${{ github.workspace }}/.ci/build
       BUILD_JOBS: "2"
 
     steps:
@@ -65,7 +65,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ runner.temp }}/panplay-components
+            ${{ github.workspace }}/.ci/components
             app/src/main/assets/deps/wow64
           key: panplay-components-${{ runner.os }}-${{ hashFiles('scripts/components.env', 'app/bundled-components.json', 'scripts/*.sh', 'runtimes/**') }}
           restore-keys: |
