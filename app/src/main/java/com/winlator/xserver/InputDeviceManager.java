@@ -71,7 +71,7 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
         Window previousPointWindow = pointWindow;
         updatePointWindow();
         if (previousPointWindow != pointWindow) {
-            if (DEBUG) com.winlator.core.XLog.log("pointer crossed " + previousPointWindow.id + " -> " + pointWindow.id +
+            com.winlator.core.XLog.log("pointer crossed " + previousPointWindow.id + " -> " + pointWindow.id +
                 " at " + xServer.pointer.getX() + "," + xServer.pointer.getY());
             sendEnterLeaveNotify(previousPointWindow, pointWindow, PointerWindowEvent.Mode.NORMAL);
         }
@@ -144,7 +144,7 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
         // A client WarpPointer can move the pointer without a physical MotionEvent.
         // Re-hit-test here as a final guard so clicks never target a stale window.
         if (!xServer.isRelativeMouseMovement()) updatePointWindowAndNotify();
-        if (DEBUG) com.winlator.core.XLog.log("pointer press button=" + button.code() + " at " +
+        com.winlator.core.XLog.log("pointer press button=" + button.code() + " at " +
             xServer.pointer.getX() + "," + xServer.pointer.getY() + " target=" + pointWindow.id +
             " grab=" + (xServer.grabManager.getWindow() != null ? xServer.grabManager.getWindow().id : 0));
 
@@ -178,7 +178,7 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
     @Override
     public void onPointerButtonRelease(Pointer.Button button) {
         if (!xServer.isRelativeMouseMovement()) updatePointWindowAndNotify();
-        if (DEBUG) com.winlator.core.XLog.log("pointer release button=" + button.code() + " at " +
+        com.winlator.core.XLog.log("pointer release button=" + button.code() + " at " +
             xServer.pointer.getX() + "," + xServer.pointer.getY() + " target=" + pointWindow.id +
             " grab=" + (xServer.grabManager.getWindow() != null ? xServer.grabManager.getWindow().id : 0));
 
