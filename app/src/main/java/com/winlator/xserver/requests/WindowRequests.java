@@ -313,14 +313,26 @@ public abstract class WindowRequests {
 
         if (warps++ % 500 == 0) com.winlator.core.XLog.log("WarpPointer #" + warps + " dst=" + (dstWindow != null ? dstWindow.id : 0) + " " + dstX + "," + dstY);
         client.xServer.lastWarpMs = android.os.SystemClock.uptimeMillis();
+
+        // Do not write X/Y independently: Pointer.setPosition notifies the X server listeners.
+        // Without that notification, pointWindow and the cursor selected by GLRenderer stay stale
+        // after games warp the pointer (common for hover-sensitive UI and mouse-look handling).
+        int newX;
+        int newY;
         if (dstWindow == null) {
-            client.xServer.pointer.setX(client.xServer.pointer.getX() + dstX);
-            client.xServer.pointer.setY(client.xServer.pointer.getY() + dstY);
+            newX = client.xServer.pointer.getX() + dstX;
+            newY = client.xServer.pointer.getY() + dstY;
         }
         else {
             short[] localPoint = dstWindow.localPointToRoot(dstX, dstY);
-            client.xServer.pointer.setX(localPoint[0]);
-            client.xServer.pointer.setY(localPoint[1]);
+            newX = localPoint[0];
+            newY = localPoint[1];
+        }
+
+        if (newX != client.xServer.pointer.getX() || newY != client.xServer.pointer.getY()) {
+            // A client warp is not physical/raw mouse motion, so this intentionally does not
+            // call XInput2Extension.sendRawMotion().
+            client.xServer.pointer.setPosition(newX, newY);
         }
     }
 
