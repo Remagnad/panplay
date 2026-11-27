@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 package dev.zenithblue.panvklauncher
 
+import com.winlator.core.XLog
 import com.winlator.xserver.Pointer
 import com.winlator.xserver.XKeycode
 
@@ -152,8 +153,15 @@ object ControllerInput {
         }
         for (k in heldKeys.toList()) if (k !in keys) { xs.injectKeyRelease(k); heldKeys -= k }
         for (k in keys) if (heldKeys.add(k)) xs.injectKeyPress(k)
-        for (b in heldMouse.toList()) if (b !in mouse) { xs.injectPointerButtonRelease(b); heldMouse -= b }
-        for (b in mouse) if (heldMouse.add(b)) xs.injectPointerButtonPress(b)
+        for (b in heldMouse.toList()) if (b !in mouse) {
+            XLog.log("controller mouse up button=\${b.code()} pointer=\${xs.pointer.getX()},\${xs.pointer.getY()}")
+            xs.injectPointerButtonRelease(b)
+            heldMouse -= b
+        }
+        for (b in mouse) if (heldMouse.add(b)) {
+            XLog.log("controller mouse down button=\${b.code()} pointer=\${xs.pointer.getX()},\${xs.pointer.getY()}")
+            xs.injectPointerButtonPress(b)
+        }
         for (w in wheels) if (wheelHeld.add(w)) {
             val b = ControllerKeys.mouse(w)!!
             xs.injectPointerButtonPress(b); xs.injectPointerButtonRelease(b)
