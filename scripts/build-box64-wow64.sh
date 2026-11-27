@@ -43,5 +43,7 @@ cat > "$P/profile.json" <<EOF
 }
 EOF
 wcp=${OUT_WCP:-/var/tmp/panvk/components}/box64-$BOX64_VERSION.wcp
-tar -C "$P" --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf - . | zstd -19 -T0 -q -f -o "$wcp"
+# Use one zstd worker: -T0 selects a runner-dependent worker count and can change the WCP bytes
+# between identical builds even though the tar input is normalized above.
+tar -C "$P" --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf - . | zstd -19 -T1 -q -f -o "$wcp"
 sha256sum "$wcp" | tee "$wcp.sha256"
