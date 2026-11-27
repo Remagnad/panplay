@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-apk-\${{ github.ref }}
+  group: android-apk-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -67,9 +67,9 @@ jobs:
           path: |
             ${{ runner.temp }}/panplay-components
             app/src/main/assets/deps/wow64
-          key: panplay-components-\${{ runner.os }}-\${{ hashFiles('scripts/components.env', 'app/bundled-components.json', 'scripts/*.sh', 'runtimes/**') }}
+          key: panplay-components-${{ runner.os }}-${{ hashFiles('scripts/components.env', 'app/bundled-components.json', 'scripts/*.sh', 'runtimes/**') }}
           restore-keys: |
-            panplay-components-\${{ runner.os }}-
+            panplay-components-${{ runner.os }}-
 
       - name: Fetch prebuilt rootfs and Proton
         run: |
@@ -103,7 +103,7 @@ jobs:
           if valid:
               print("Using cached, checksum-verified DXVK and VKD3D WCPs")
           else:
-              subprocess.run(["sh", "scripts/build-dxvk.sh"], check=True, env={**__import__("os").environ, "OUT": str(out), "WORK": str(pathlib.Path(os.environ["BUILD_DIR"])), "JOBS": "2"})
+              subprocess.run(["sh", "scripts/build-dxvk.sh"], check=True, env={**os.environ, "OUT": str(out), "WORK": str(pathlib.Path(os.environ["BUILD_DIR"])), "JOBS": "2"})
           PY
 
       - name: Build Box64 WOW64 support
@@ -203,7 +203,7 @@ jobs:
       - name: Upload full APK
         uses: actions/upload-artifact@v7
         with:
-          name: panplay-full-debug-\${{ github.sha }}
+          name: panplay-full-debug-${{ github.sha }}
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           compression-level: 0
