@@ -28,7 +28,7 @@
     },
     {
       "file": "box64-0.4.5-2f47bdf.wcp",
-      "sha256": "e8a40cc9cc4927ac6f4a65eb19cdb5ae23b9012f8e106d5c9a8aa88df0714731",
+      "sha256": "3d1cb60ecf91d26faa2aa1af85e362e9f1d17dfbe201a71a4cde99735f6e49b6",
       "build": "scripts/build-box64-wow64.sh"
     },
     {
