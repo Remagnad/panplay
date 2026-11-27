@@ -14,14 +14,19 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-apk-${{ github.ref }}
+  group: android-apk-\${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
-    name: Test and build APK
+    name: Build full PanPlay APK
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 360
+
+    env:
+      COMPONENTS_DIR: ~/.cache/panplay-components
+      BUILD_DIR: ~/.cache/panplay-build
+      BUILD_JOBS: "2"
 
     steps:
       - name: Checkout
@@ -38,8 +43,17 @@ jobs:
         with:
           packages: ""
 
-      - name: Install Android build packages
+      - name: Install Android and cross-build dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential autoconf automake libtool gettext pkg-config \
+            cmake ninja-build meson bison flex nasm yasm \
+            git curl wget ca-certificates unzip zip tar xz-utils zstd \
+            python3 python3-pip python3-yaml \
+            libffi-dev libcap-dev libdbus-1-dev libglib2.0-dev \
+            libxml2-dev libssl-dev libzstd-dev liblz4-dev \
+            libncurses-dev libedit-dev libcurl4-openssl-dev
           sdkmanager --install \
             "platforms;android-36" \
             "build-tools;36.0.0" \
@@ -47,20 +61,132 @@ jobs:
             "cmake;3.22.1"
           yes | sdkmanager --licenses
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+      - name: Restore pinned component cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/panplay-components
+            app/src/main/assets/deps/wow64
+          key: panplay-components-\${{ runner.os }}-\${{ hashFiles('scripts/components.env', 'app/bundled-components.json', 'scripts/*.sh', 'runtimes/**') }}
+          restore-keys: |
+            panplay-components-\${{ runner.os }}-
 
-      - name: Run unit tests and build download-only APK
+      - name: Fetch prebuilt rootfs and Proton
+        run: |
+          mkdir -p "$COMPONENTS_DIR" "$BUILD_DIR"
+          OUT="$COMPONENTS_DIR" sh scripts/fetch-launcher-components.sh
+
+      - name: Build FEX ARM64EC and WOW64
+        run: |
+          expected="$(python3 -c 'import json; print(next(c["sha256"] for c in json.load(open("app/bundled-components.json"))["components"] if c["file"] == "fexcore-2609.1.wcp"))')"
+          if ! printf '%s  %s\n' "$expected" "$COMPONENTS_DIR/fexcore-2609.1.wcp" | sha256sum -c --status 2>/dev/null; then
+            OUT="$COMPONENTS_DIR" WORK="$BUILD_DIR" JOBS="$BUILD_JOBS" sh scripts/build-fex-windows.sh
+          else
+            echo "Using cached, checksum-verified FEX WCP"
+          fi
+
+      - name: Build DXVK and VKD3D-Proton
+        run: |
+          python3 - "$COMPONENTS_DIR" <<'PY'
+          import hashlib, json, pathlib, subprocess, sys
+          out = pathlib.Path(sys.argv[1])
+          manifest = json.load(open("app/bundled-components.json"))
+          files = {c["file"]: c["sha256"] for c in manifest["components"]}
+          names = ["dxvk-3.1.1-4-arm64ec.wcp", "vkd3d-3.0.1-452-g22307558.wcp"]
+          valid = all((out / n).is_file() and hashlib.sha256((out / n).read_bytes()).hexdigest() == files[n] for n in names)
+          if valid:
+              print("Using cached, checksum-verified DXVK and VKD3D WCPs")
+          else:
+              subprocess.run(["sh", "scripts/build-dxvk.sh"], check=True, env={**__import__("os").environ, "OUT": str(out), "WORK": str(pathlib.Path.home()/".cache/panplay-build"), "JOBS": "2"})
+          PY
+
+      - name: Build Box64 WOW64 support
+        run: |
+          expected="$(python3 -c 'import json; print(next(c["sha256"] for c in json.load(open("app/bundled-components.json"))["components"] if c["file"] == "box64-0.4.5-2f47bdf.wcp"))')"
+          if ! test -s app/src/main/assets/deps/wow64/wowbox64.dll || \
+             ! printf '%s  %s\n' "$expected" "$COMPONENTS_DIR/box64-0.4.5-2f47bdf.wcp" | sha256sum -c --status 2>/dev/null; then
+            OUT="$GITHUB_WORKSPACE/app/src/main/assets/deps/wow64" \
+            OUT_WCP="$COMPONENTS_DIR" WORK="$BUILD_DIR" JOBS="$BUILD_JOBS" \
+              sh scripts/build-box64-wow64.sh
+          else
+            echo "Using cached, checksum-verified Box64 files"
+          fi
+
+      - name: Build PulseAudio and ALSA Android components
+        run: |
+          python3 - "$COMPONENTS_DIR" <<'PY'
+          import hashlib, json, os, pathlib, subprocess, sys
+          out = pathlib.Path(sys.argv[1])
+          manifest = json.load(open("app/bundled-components.json"))
+          files = {c["file"]: c["sha256"] for c in manifest["components"]}
+          names = ["PulseAudio-17.0-2.wcp", "ALSA-1.2.16.1-2.wcp"]
+          valid = all((out / n).is_file() and hashlib.sha256((out / n).read_bytes()).hexdigest() == files[n] for n in names)
+          if valid:
+              print("Using cached, checksum-verified audio WCPs")
+          else:
+              env = {**os.environ, "OUT": str(out), "WORK": str(pathlib.Path.home()/".cache/panplay-audio-build"),
+                     "JOBS": "2", "NDK": str(pathlib.Path(os.environ["ANDROID_HOME"])/"ndk/29.0.14206865")}
+              subprocess.run(["sh", "scripts/build-audio.sh"], check=True, env=env)
+          PY
+
+      - name: Verify every pinned component
+        run: |
+          python3 - "$COMPONENTS_DIR" <<'PY'
+          import hashlib, json, pathlib, sys
+          out = pathlib.Path(sys.argv[1])
+          components = json.load(open("app/bundled-components.json"))["components"]
+          failed = []
+          for c in components:
+              p = out / c["file"]
+              actual = hashlib.sha256(p.read_bytes()).hexdigest() if p.is_file() else "missing"
+              ok = actual == c["sha256"]
+              print(f"{'OK' if ok else 'FAIL'} {c['file']}")
+              if not ok: failed.append(c["file"])
+          if failed:
+              raise SystemExit("Pinned component verification failed: " + ", ".join(failed))
+          wowbox = pathlib.Path("app/src/main/assets/deps/wow64/wowbox64.dll")
+          if not wowbox.is_file():
+              raise SystemExit(f"Missing {wowbox}")
+          print(f"OK {wowbox}")
+          PY
+
+      - name: Run unit tests and build full APK
         run: |
           ./gradlew --no-daemon --stacktrace \
             :app:testDebugUnitTest \
             :app:assembleDebug \
-            -PbundleComponents=false
+            -PbundleComponents=true \
+            -PcomponentsDir="$COMPONENTS_DIR"
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          echo "Full APK size:"
+          ls -lh "$APK"
+          python3 - "$APK" <<'PY'
+          import sys, zipfile
+          apk = zipfile.ZipFile(sys.argv[1])
+          names = set(apk.namelist())
+          expected = [
+              "assets/components/imagefs_bionic.txz",
+              "assets/components/proton-11.0-2-arm64ec.wcp",
+              "assets/components/fexcore-2609.1.wcp",
+              "assets/components/dxvk-3.1.1-4-arm64ec.wcp",
+              "assets/components/vkd3d-3.0.1-452-g22307558.wcp",
+              "assets/components/box64-0.4.5-2f47bdf.wcp",
+              "assets/components/PulseAudio-17.0-2.wcp",
+              "assets/components/ALSA-1.2.16.1-2.wcp",
+              "assets/deps/wow64/wowbox64.dll",
+          ]
+          missing = [n for n in expected if n not in names]
+          if missing:
+              raise SystemExit("APK missing full-build assets: " + ", ".join(missing))
+          print(f"Verified {len(expected)} full-build assets inside APK")
+          PY
 
-      - name: Upload APK
+      - name: Upload full APK
         uses: actions/upload-artifact@v7
         with:
-          name: panplay-debug-download-only-${{ github.sha }}
+          name: panplay-full-debug-\${{ github.sha }}
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          compression-level: 0
           retention-days: 14
