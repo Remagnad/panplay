@@ -6,3 +6,4 @@
 - **Último bloqueio:** somente o SHA-256 do WCP do Box64 diferiu; os outros sete componentes passaram na verificação.
 - **Correção aplicada:** hash do Box64 atualizado com o valor produzido pelo CI; verificações permanecem ativas.
 - **Estado:** nova execução precisa validar todos os componentes, rodar testes e gerar o APK completo.
+
