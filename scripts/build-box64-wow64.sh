@@ -31,6 +31,8 @@ rm -rf "$B"
 P=$WORK/box64-pkg
 rm -rf "$P"; mkdir -p "$P/system32"
 cp "$B/wowbox64-prefix/src/wowbox64-build/wowbox64.dll" "$P/system32/wowbox64.dll"
+# Keep the standalone DLL alongside the WCP; the app bundles and verifies both assets.
+cp "$P/system32/wowbox64.dll" "$OUT/wowbox64.dll"
 cat > "$P/profile.json" <<EOF
 {
   "type": "Box64",
