@@ -50,7 +50,7 @@ jobs:
             build-essential autoconf automake libtool gettext pkg-config \
             cmake ninja-build meson glslang-tools bison flex nasm yasm \
             git curl wget ca-certificates unzip zip tar xz-utils zstd \
-            python3 python3-pip python3-yaml python3-mako \
+            python3 python3-pip python3-yaml python3-mako python3-venv \
             libffi-dev libcap-dev libdbus-1-dev libglib2.0-dev \
             libxml2-dev libssl-dev libzstd-dev liblz4-dev \
             libncurses-dev libedit-dev libcurl4-openssl-dev \
@@ -144,6 +144,12 @@ jobs:
 
       - name: Build Mesa Zink OpenGL component
         run: |
+          # Ubuntu 24.04 ships Meson 1.3.2; Mesa 26.2.4 requires >= 1.4.0.
+          # Isolate the pinned build tool from the distro-managed Meson (PEP 668).
+          python3 -m venv "$BUILD_DIR/meson-venv"
+          "$BUILD_DIR/meson-venv/bin/pip" install --disable-pip-version-check --no-input "meson==1.4.2"
+          export PATH="$BUILD_DIR/meson-venv/bin:$PATH"
+          meson --version
           NDK="$ANDROID_HOME/ndk/29.0.14206865"
           WCP="$COMPONENTS_DIR/Mesa-Zink-26.2.4-1.wcp"
           WCP_SHA="$WCP.sha256"
