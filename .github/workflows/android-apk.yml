@@ -50,10 +50,14 @@ jobs:
             build-essential autoconf automake libtool gettext pkg-config \
             cmake ninja-build meson glslang-tools bison flex nasm yasm \
             git curl wget ca-certificates unzip zip tar xz-utils zstd \
-            python3 python3-pip python3-yaml \
+            python3 python3-pip python3-yaml python3-mako \
             libffi-dev libcap-dev libdbus-1-dev libglib2.0-dev \
             libxml2-dev libssl-dev libzstd-dev liblz4-dev \
-            libncurses-dev libedit-dev libcurl4-openssl-dev
+            libncurses-dev libedit-dev libcurl4-openssl-dev \
+            libxcb1-dev libxcb-randr0-dev libxcb-dri3-dev libxcb-present-dev \
+            libxcb-shm0-dev libxcb-sync-dev libxcb-xfixes0-dev libxcb-glx0-dev libxcb-dri2-0-dev \
+            libx11-dev libx11-xcb-dev libxshmfence-dev libxrandr-dev libxfixes-dev \
+            libxext-dev libxxf86vm-dev libgl-dev
           sdkmanager --install \
             "platforms;android-36" \
             "build-tools;36.0.0" \
@@ -138,19 +142,42 @@ jobs:
               subprocess.run(["sh", "scripts/build-audio.sh"], check=True, env=env)
           PY
 
-      - name: Pin generated Box64 checksum
+      - name: Build Mesa Zink OpenGL component
+        run: |
+          NDK="$ANDROID_HOME/ndk/29.0.14206865"
+          sh scripts/build-android-deps.sh --api 29 --ndk "$NDK" --out "$BUILD_DIR/android-deps"
+          OUT="$COMPONENTS_DIR" WORK="$BUILD_DIR/mesa-zink" JOBS="$BUILD_JOBS" \
+          NDK="$NDK" DRM_PCDIR="$BUILD_DIR/android-deps/lib/pkgconfig" \
+            sh scripts/build-mesa-zink.sh
+          WCP="$COMPONENTS_DIR/Mesa-Zink-26.2.4-1.wcp"
+          test -s "$WCP"
+          zstd -dc "$WCP" | tar -tf - > "$BUILD_DIR/mesa-zink-contents.txt"
+          for entry in ./lib/libEGL.so.1 ./lib/libGLESv2.so.2 ./lib/libGLESv1_CM.so.1 ./lib/dri/zink_dri.so; do
+            grep -Fxq "$entry" "$BUILD_DIR/mesa-zink-contents.txt" || {
+              echo "Mesa Zink WCP is missing $entry" >&2
+              exit 1
+            }
+          done
+          echo "Verified Mesa Zink EGL/GLES and Zink driver inside WCP"
+
+      - name: Pin generated component checksums
         run: |
           python3 - "$COMPONENTS_DIR" <<'PY'
           import hashlib, json, pathlib, sys
           manifest_path = pathlib.Path("app/bundled-components.json")
           manifest = json.loads(manifest_path.read_text())
-          box64 = next(c for c in manifest["components"] if c["file"] == "box64-0.4.5-2f47bdf.wcp")
-          path = pathlib.Path(sys.argv[1]) / box64["file"]
-          if not path.is_file():
-              raise SystemExit(f"Missing generated Box64 WCP: {path}")
-          box64["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
-          manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
-          print(f"Pinned generated Box64 WCP sha256: {box64['sha256']}")
+          generated = [
+              "box64-0.4.5-2f47bdf.wcp",
+              "Mesa-Zink-26.2.4-1.wcp",
+          ]
+          for name in generated:
+              component = next(c for c in manifest["components"] if c["file"] == name)
+              path = pathlib.Path(sys.argv[1]) / name
+              if not path.is_file():
+                  raise SystemExit(f"Missing generated component WCP: {path}")
+              component["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+              print(f"Pinned generated {name} sha256: {component['sha256']}")
+          manifest_path.write_text(json.dumps(manifest, indent=2) + "\\n")
           PY
 
       - name: Verify every pinned component
@@ -204,6 +231,7 @@ jobs:
               "assets/components/box64-0.4.5-2f47bdf.wcp",
               "assets/components/PulseAudio-17.0-2.wcp",
               "assets/components/ALSA-1.2.16.1-2.wcp",
+              "assets/components/Mesa-Zink-26.2.4-1.wcp",
               "assets/deps/wow64/wowbox64.dll",
           ]
           missing = [n for n in expected if n not in names]
