@@ -21,3 +21,6 @@
 - O workflow full APK agora compila Mesa Zink, valida os arquivos dentro do WCP, fixa o hash gerado no manifesto temporário e exige o WCP dentro do APK.
 - **CI em andamento:** run [#46141097618](https://github.com/Remagnad/panplay/actions/runs/46141097618). No último estado, estava instalando dependências. Nenhum APK completo validado ou artefato publicado ainda.
 - Após a geração do APK, instalar **OpenGL (Mesa Zink)** pela tela Components; o WCP é empacotado no APK, mas segue o fluxo normal de instalação de componentes.
+
+- **Build #46141189507:** dependências, fetch de rootfs/Proton, FEX, DXVK/VKD3D, Box64 e áudio passaram; a compilação Mesa Zink parou no Meson do runner: Ubuntu 24.04 forneceu 1.3.2, mas Mesa 26.2.4 exige >= 1.4.0. Nenhum WCP Zink nem APK foi gerado.
+- **Correção de CI preparada:** instalar Meson 1.4.2 em virtualenv Python no step do Mesa Zink, usar esse PATH também ao compilar libdrm e Mesa; incluir `python3-venv` nas dependências do runner.
