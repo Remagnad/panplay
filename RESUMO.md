@@ -24,3 +24,6 @@
 
 - **Build #46141189507:** dependências, fetch de rootfs/Proton, FEX, DXVK/VKD3D, Box64 e áudio passaram; a compilação Mesa Zink parou no Meson do runner: Ubuntu 24.04 forneceu 1.3.2, mas Mesa 26.2.4 exige >= 1.4.0. Nenhum WCP Zink nem APK foi gerado.
 - **Correção de CI preparada:** instalar Meson 1.4.2 em virtualenv Python no step do Mesa Zink, usar esse PATH também ao compilar libdrm e Mesa; incluir `python3-venv` nas dependências do runner.
+
+- **Build #41:** a correção do Meson funcionou: o runner usou 1.4.2 e a compilação das dependências Android (libdrm) passou. A configuração do Mesa falhou porque o Python 3.12 do virtualenv não tinha o módulo `packaging` (distutils não está disponível nessa versão do Python). Nenhum APK foi gerado.
+- **Próxima correção de CI:** instalar `packaging==24.2` no mesmo virtualenv do Meson e verificar o import antes de configurar o Mesa.
