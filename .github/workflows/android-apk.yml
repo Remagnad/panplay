@@ -57,7 +57,7 @@ jobs:
             libxcb1-dev libxcb-randr0-dev libxcb-dri3-dev libxcb-present-dev \
             libxcb-shm0-dev libxcb-sync-dev libxcb-xfixes0-dev libxcb-glx0-dev libxcb-dri2-0-dev \
             libx11-dev libx11-xcb-dev libxshmfence-dev libxrandr-dev libxfixes-dev \
-            libxext-dev libxxf86vm-dev libgl-dev
+            libxext-dev libxxf86vm-dev libgl-dev mesa-common-dev x11proto-dev
           sdkmanager --install \
             "platforms;android-36" \
             "build-tools;36.0.0" \
@@ -145,11 +145,22 @@ jobs:
       - name: Build Mesa Zink OpenGL component
         run: |
           NDK="$ANDROID_HOME/ndk/29.0.14206865"
-          sh scripts/build-android-deps.sh --api 29 --ndk "$NDK" --out "$BUILD_DIR/android-deps"
-          OUT="$COMPONENTS_DIR" WORK="$BUILD_DIR/mesa-zink" JOBS="$BUILD_JOBS" \
-          NDK="$NDK" DRM_PCDIR="$BUILD_DIR/android-deps/lib/pkgconfig" \
-            sh scripts/build-mesa-zink.sh
           WCP="$COMPONENTS_DIR/Mesa-Zink-26.2.4-1.wcp"
+          WCP_SHA="$WCP.sha256"
+          cached=false
+          if [ -s "$WCP" ] && [ -s "$WCP_SHA" ]; then
+            expected="$(awk '{print $1}' "$WCP_SHA")"
+            actual="$(sha256sum "$WCP" | awk '{print $1}')"
+            [ "$expected" = "$actual" ] && cached=true
+          fi
+          if [ "$cached" != true ]; then
+            sh scripts/build-android-deps.sh --api 29 --ndk "$NDK" --out "$BUILD_DIR/android-deps"
+            OUT="$COMPONENTS_DIR" WORK="$BUILD_DIR/mesa-zink" JOBS="$BUILD_JOBS" \
+            NDK="$NDK" DRM_PCDIR="$BUILD_DIR/android-deps/lib/pkgconfig" \
+              sh scripts/build-mesa-zink.sh
+          else
+            echo "Using cached, checksum-verified Mesa Zink WCP"
+          fi
           test -s "$WCP"
           zstd -dc "$WCP" | tar -tf - > "$BUILD_DIR/mesa-zink-contents.txt"
           for entry in ./lib/libEGL.so.1 ./lib/libGLESv2.so.2 ./lib/libGLESv1_CM.so.1 ./lib/dri/zink_dri.so; do
@@ -177,7 +188,7 @@ jobs:
                   raise SystemExit(f"Missing generated component WCP: {path}")
               component["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
               print(f"Pinned generated {name} sha256: {component['sha256']}")
-          manifest_path.write_text(json.dumps(manifest, indent=2) + "\\n")
+          manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
           PY
 
       - name: Verify every pinned component
