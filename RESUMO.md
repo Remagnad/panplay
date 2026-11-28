@@ -27,3 +27,7 @@
 
 - **Build #41:** a correção do Meson funcionou: o runner usou 1.4.2 e a compilação das dependências Android (libdrm) passou. A configuração do Mesa falhou porque o Python 3.12 do virtualenv não tinha o módulo `packaging` (distutils não está disponível nessa versão do Python). Nenhum APK foi gerado.
 - **Próxima correção de CI:** instalar `packaging==24.2` no mesmo virtualenv do Meson e verificar o import antes de configurar o Mesa.
+
+
+- **Build #44 (28/11/2026):** a atualização do Meson para 1.4.2 e a instalação de `packaging==24.2` no virtualenv funcionaram; a configuração do Mesa parou porque o Python do virtualenv não encontrou `Mako >= 0.8.0`. A instalação apt de `python3-mako` não atende esse Python isolado. Nenhum APK foi gerado.
+- **Correção seguinte:** instalar `Mako==1.3.10` junto com Meson e packaging no virtualenv e verificar o import antes de iniciar a compilação.
