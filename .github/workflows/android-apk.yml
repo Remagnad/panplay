@@ -71,7 +71,7 @@ jobs:
           path: |
             ${{ github.workspace }}/.ci/components
             app/src/main/assets/deps/wow64
-          key: panplay-components-${{ runner.os }}-${{ hashFiles('scripts/components.env', 'app/bundled-components.json', 'scripts/*.sh', 'runtimes/**') }}
+          key: panplay-components-${{ runner.os }}-${{ hashFiles('scripts/components.env', 'app/bundled-components.json', 'scripts/*.sh', 'runtimes/**', 'meson/**') }}
           restore-keys: |
             panplay-components-${{ runner.os }}-
 
