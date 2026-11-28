@@ -167,8 +167,8 @@ val copyComponents = tasks.register<Sync>("copyComponents") {
             for (c in bundledComponents) {
                 val f = File(componentsDir, c["file"]!!)
                 if (!f.isFile) throw GradleException(
-                    "Missing bundled component $f: run scripts/fetch-launcher-components.sh, " +
-                        "build-fex-windows.sh, build-dxvk.sh (or -PbundleComponents=false)"
+                    "Missing bundled component $f: run scripts/fetch-launcher-components.sh and the component build scripts " +
+                        "(FEX, DXVK/VKD3D, Box64, audio, Mesa Zink; or -PbundleComponents=false)"
                 )
                 val got = sha256Of(f)
                 if (got != c["sha256"]) throw GradleException("Bundled component $f sha256 $got != pinned ${c["sha256"]}")
