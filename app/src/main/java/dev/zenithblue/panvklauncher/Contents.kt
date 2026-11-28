@@ -136,6 +136,17 @@ object ContentManager {
             versionName = "1.2.16.1-2",
             note = "Direct AAudio output for Wine's winealsa driver",
             asset = "components/ALSA-1.2.16.1-2.wcp"
+        ),
+        // OpenGL for Wine: Mesa EGL + Zink on PanVK through winex11's EGL backend.
+        CatalogEntry(
+            type = "Mesa-Zink",
+            name = "Mesa 26.2.4 EGL + Zink (OpenGL on Vulkan), aarch64 bionic (built from mesa-26.2.4.tar.xz)",
+            url = "",
+            sha256 = null,
+            title = "OpenGL (Mesa Zink)",
+            versionName = "26.2.4-1",
+            note = "OpenGL for Wine games on top of PanVK",
+            asset = "components/Mesa-Zink-26.2.4-1.wcp"
         )
     )
 
@@ -166,6 +177,12 @@ object ContentManager {
         val base = when (c.type) {
             "Proton" -> File(c.dir, "bin/wine").exists() && File(c.dir, "bin/wineserver").exists()
             "imagefs" -> File(c.dir, "usr").isDirectory
+            "Mesa-Zink" -> listOf(
+                "lib/libEGL.so.1",
+                "lib/libGLESv2.so.2",
+                "lib/libGLESv1_CM.so.1",
+                "lib/dri/zink_dri.so"
+            ).all { File(c.dir, it).isFile }
             else -> true
         }
         if (!base) return false
