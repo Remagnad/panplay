@@ -147,7 +147,7 @@ jobs:
           # Ubuntu 24.04 ships Meson 1.3.2; Mesa 26.2.4 requires >= 1.4.0.
           # Isolate the pinned build tool from the distro-managed Meson (PEP 668).
           python3 -m venv "$BUILD_DIR/meson-venv"
-          "$BUILD_DIR/meson-venv/bin/pip" install --disable-pip-version-check --no-input "meson==1.4.2"
+          "$BUILD_DIR/meson-venv/bin/pip" install --disable-pip-version-check --no-input "meson==1.4.2" "packaging==24.2"
           export PATH="$BUILD_DIR/meson-venv/bin:$PATH"
           meson --version
           "$BUILD_DIR/meson-venv/bin/python" -c 'import packaging.version; print("Python packaging:", packaging.version.__version__ if hasattr(packaging.version, "__version__") else "available")'
