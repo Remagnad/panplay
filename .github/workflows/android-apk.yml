@@ -150,6 +150,7 @@ jobs:
           "$BUILD_DIR/meson-venv/bin/pip" install --disable-pip-version-check --no-input "meson==1.4.2"
           export PATH="$BUILD_DIR/meson-venv/bin:$PATH"
           meson --version
+          "$BUILD_DIR/meson-venv/bin/python" -c 'import packaging.version; print("Python packaging:", packaging.version.__version__ if hasattr(packaging.version, "__version__") else "available")'
           NDK="$ANDROID_HOME/ndk/29.0.14206865"
           WCP="$COMPONENTS_DIR/Mesa-Zink-26.2.4-1.wcp"
           WCP_SHA="$WCP.sha256"
