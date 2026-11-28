@@ -457,6 +457,23 @@ object ContainerManager {
         // Per-game shortcut env wins over defaults (but not DISPLAY / display plumbing above).
         launchOpts.get()?.env?.forEach { (k, v) -> if (k != "DISPLAY" && k != "DXVK_HUD") envMap[k] = v }
         envMap.remove(EXTRA_DLL_OVERRIDES)?.let { envMap["WINEDLLOVERRIDES"] = envMap["WINEDLLOVERRIDES"] + it }
+        // OpenGL for Wine: use Mesa's EGL backend and Zink (OpenGL on Vulkan/PanVK).
+        // Keep imagefs libraries first for shared dependencies; Mesa's own EGL and Gallium driver come last.
+        val mesaZink = ContentManager.current(ctx, "Mesa-Zink")
+        val mesaZinkLib = mesaZink?.dir?.let { dir ->
+            File(dir, "lib").takeIf { lib ->
+                File(lib, "libEGL.so.1").isFile && File(lib, "dri/zink_dri.so").isFile
+            }
+        }
+        if (mesaZinkLib != null) {
+            envMap["LD_LIBRARY_PATH"] = envMap["LD_LIBRARY_PATH"] + ":" + mesaZinkLib.absolutePath
+            envMap["LIBGL_DRIVERS_PATH"] = File(mesaZinkLib, "dri").absolutePath
+            envMap["MESA_LOADER_DRIVER_OVERRIDE"] = "zink"
+            envMap["GALLIUM_DRIVER"] = "zink"
+            // The built-in X server has no DRI3; this keeps Zink/Kopper on the DRI2 present path.
+            envMap["LIBGL_KOPPER_DRI2"] = "1"
+            envMap["WINE_USE_EGL"] = "1"
+        }
         // Game audio (graphical runs, set by run()): driver libs first on LD_LIBRARY_PATH, the other wine*.drv disabled.
         audioEnv.get()?.forEach { (k, v) ->
             when (k) {
@@ -692,6 +709,30 @@ object ContainerManager {
                     if (code == 0) try { noGrabMarker.createNewFile() } catch (_: Exception) {}
                     else onLine("Wine GrabPointer=N failed (exit=$code); mouse clicks may stall in fullscreen games.")
                 }
+                // Use Wine's EGL backend only while the Mesa-Zink component is installed. If it is later removed,
+                // restore the previous GLX path so the prefix does not retain a broken UseEGL setting.
+                val mesaZink = ContentManager.current(ctx, "Mesa-Zink")
+                val eglMarker = File(containerDir, ".useegl-state")
+                val previousEglState = try { eglMarker.takeIf { it.isFile }?.readText()?.trim() } catch (_: Exception) { null }
+                val nextEglState = if (mesaZink != null) "enabled" else "disabled"
+                if ((mesaZink != null || previousEglState == "enabled") && previousEglState != nextEglState) {
+                    val eglValue = if (mesaZink != null) "Y" else "N"
+                    val code = runInternal(
+                        ctx,
+                        listOf("reg", "add", """HKCU\Software\Wine\X11 Driver""", "/v", "UseEGL", "/d", eglValue, "/f"),
+                        containerDir,
+                        onLine,
+                        session.env
+                    )
+                    if (code == 0) {
+                        try { eglMarker.writeText(nextEglState) } catch (_: Exception) {}
+                    } else {
+                        onLine("Wine UseEGL=$eglValue failed (exit=$code); OpenGL through Mesa Zink may not work.")
+                    }
+                }
+                if (mesaZink != null) {
+                    onLine("OpenGL: Mesa Zink ${mesaZink.versionName} enabled (EGL → Zink → PanVK).")
+                }
                 if (synchronized(lifecycleLock) {
                         LaunchGate.cancelled(stopRequested, state == State.STOPPING)
                     }
@@ -751,6 +792,9 @@ object ContainerManager {
             val msg = "File not found: $exePath"
             onLine(msg)
             return -1
+        }
+        if ("opengl32.dll" in PeInfo.imports(exeFile.path) && ContentManager.current(ctx, "Mesa-Zink") == null) {
+            onLine("OpenGL game detected: install 'OpenGL (Mesa Zink)' from Components to provide Wine's EGL/Zink backend.")
         }
         val fbFile = File(ctx.filesDir, "container/fb.bin")
         try { fbFile.delete() } catch (_: Exception) {}
