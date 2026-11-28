@@ -11,3 +11,13 @@
 - **Build #18:** usar `zstd -T1` não tornou o WCP do Box64 idêntico entre execuções; hash gerado: `cfd846f158f618dc1202c9f47468a7dcbfcf75a38ea5b2e88c3018647ef43f99`.
 - **Ajuste de CI:** o Box64 continua sendo compilado de commit/toolchain fixos, mas seu SHA-256 será calculado no próprio job e gravado no manifesto temporário antes da verificação e do Gradle. Assim o APK mantém a validação de integridade contra os bytes exatos gerados, sem depender de um hash de build instável.
 - **Próximo passo:** executar novamente os testes e gerar o APK completo; ainda não existe APK validado.
+
+## OpenGL / Mesa Zink
+
+- **Causa identificada pelo teste do usuário:** o APK modificado não incluía Mesa Zink, presente no PanPlay original; por isso o Wine não tinha o backend OpenGL esperado e o Mewgenics falhava com `no matching GL pixel format available`.
+- Portada a implementação atual do PanPlay: componente interno `Mesa-Zink-26.2.4-1.wcp` (Mesa EGL + Zink sobre Vulkan/PanVK), com build Android ARM64, dependências libdrm e patch EGL para permitir desktop OpenGL no build Bionic.
+- Adicionado ao manifesto e catálogo de componentes. A integridade do componente exige `libEGL.so.1`, GLES e `zink_dri.so`.
+- O ambiente do Wine ativa EGL/Zink quando o componente está instalado: `WINE_USE_EGL=1`, `LIBGL_DRIVERS_PATH`, `MESA_LOADER_DRIVER_OVERRIDE=zink`, `GALLIUM_DRIVER=zink` e `LIBGL_KOPPER_DRI2=1`; a chave Wine `UseEGL` é ativada e revertida se o componente for removido.
+- O workflow full APK agora compila Mesa Zink, valida os arquivos dentro do WCP, fixa o hash gerado no manifesto temporário e exige o WCP dentro do APK.
+- **CI em andamento:** run [#46141097618](https://github.com/Remagnad/panplay/actions/runs/46141097618). No último estado, estava instalando dependências. Nenhum APK completo validado ou artefato publicado ainda.
+- Após a geração do APK, instalar **OpenGL (Mesa Zink)** pela tela Components; o WCP é empacotado no APK, mas segue o fluxo normal de instalação de componentes.
