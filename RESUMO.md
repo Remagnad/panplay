@@ -33,3 +33,7 @@
 - **Correção seguinte:** instalar `Mako==1.3.10` junto com Meson e packaging no virtualenv e verificar o import antes de iniciar a compilação.
 
 - O workflow foi atualizado para instalar `Mako==1.3.10` dentro do virtualenv do Mesa e validar `import mako` antes do Meson. Aguardar a próxima execução completa; até agora nenhum APK validado foi publicado.
+
+
+- **Build #47 (28/11/2026):** as dependências `Meson 1.4.2`, `packaging 24.2` e `Mako 1.3.10` foram instaladas e detectadas no virtualenv. A configuração do Mesa avançou até a próxima verificação e parou porque faltava `PyYAML` (`yaml`), também no Python isolado. Os outros componentes continuaram passando; não houve APK.
+- **Correção seguinte:** instalar `PyYAML==6.0.2` no mesmo virtualenv e verificar `import yaml` junto com Mako e packaging.
