@@ -31,3 +31,5 @@
 
 - **Build #44 (28/11/2026):** a atualização do Meson para 1.4.2 e a instalação de `packaging==24.2` no virtualenv funcionaram; a configuração do Mesa parou porque o Python do virtualenv não encontrou `Mako >= 0.8.0`. A instalação apt de `python3-mako` não atende esse Python isolado. Nenhum APK foi gerado.
 - **Correção seguinte:** instalar `Mako==1.3.10` junto com Meson e packaging no virtualenv e verificar o import antes de iniciar a compilação.
+
+- O workflow foi atualizado para instalar `Mako==1.3.10` dentro do virtualenv do Mesa e validar `import mako` antes do Meson. Aguardar a próxima execução completa; até agora nenhum APK validado foi publicado.
